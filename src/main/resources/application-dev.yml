@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/saleapp?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
+    username: root
+    password: qwer1234
+  jpa:
+    hibernate:
+      ddl-auto: update        # 로컬은 편하게 update 가능
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+app:
+  upload-dir: C:\uploads\image
