@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>SaleApp</title>
+</head>
+<body>
+<script th:inline="javascript">
+  let msg = [[${msg}]];
+  let redirectURL = [[${redirectURL}]];
+  if (msg && redirectURL) {
+  alert(msg);
+  window.location.href = redirectURL;
+  }
+</script>
+</body>
+</html>

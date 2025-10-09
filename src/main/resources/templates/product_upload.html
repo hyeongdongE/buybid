@@ -1,0 +1,107 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<body class="d-flex flex-column min-vh-100">
+<!-- 이 부분이 layout.html의 content 자리에 들어감 -->
+<div layout:fragment="content">
+  <main class="container px-0" style="max-width: 720px;">
+    <!-- 이미지 업로드 -->
+    <div class="form-section">
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <span class="field-label">사진</span>
+        <span class="counter" id="imgCount">0/10</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <div class="thumb d-flex align-items-center justify-content-center border" id="pickBox" role="button">
+          <i class="bi bi-camera fs-4 text-secondary"></i>
+        </div>
+        <div id="thumbs" class="d-flex align-items-center gap-2 flex-wrap"></div>
+      </div>
+      <input type="file" id="images" name="images" class="d-none" accept="image/*" multiple>
+      <div class="helper mt-2">대표 사진을 포함해 최대 10장까지 업로드하세요. (JPG/PNG, 10MB 이하)</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 제목 -->
+    <div class="form-section">
+      <label class="field-label mb-2" for="title">제목</label>
+      <input id="title" name="title" type="text" class="form-control form-control-lg" placeholder="글 제목" required maxlength="80">
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 상세 설명 -->
+    <div class="form-section">
+      <label class="field-label mb-2" for="description">자세한 설명</label>
+      <textarea id="description" name="description" class="form-control" rows="6" placeholder="신뢰할 수 있는 거래를 위해 자세히 적어주세요. 상태/구성품/사용기간 등" required></textarea>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 카테고리 / 거래 지역 -->
+    <div class="form-section">
+      <div class="row g-3">
+        <div class="col-12">
+          <label class="field-label mb-2" for="category">카테고리</label>
+          <select id="category" name="category" class="form-select" required>
+            <option value="" disabled selected>선택하세요</option>
+            <option value="전자제품">전자제품</option>
+            <option value="패션/잡화">패션/잡화</option>
+            <option value="가구/생활">가구/생활</option>
+            <option value="취미/게임/도서">취미/게임/도서</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="field-label mb-2" for="startAt">경매 시작일</label>
+          <input type="datetime-local" id="startAt" name="startAt" class="form-control" required>
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="field-label mb-2" for="endAt">경매 마감일</label>
+          <input type="datetime-local" id="endAt" name="endAt" class="form-control" required>
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="field-label mb-2" for="startPrice">최소 입찰가</label>
+          <div class="input-group">
+            <span class="input-group-text">₩</span>
+            <input id="startPrice" name="startPrice" type="number" min="0" step="100" class="form-control" placeholder="시작가" required>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="field-label mb-2" for="minIncrement">최소 입찰단위</label>
+          <div class="input-group">
+            <span class="input-group-text">₩</span>
+            <input id="minIncrement" name="minIncrement" type="number" min="100" step="100" class="form-control" value="1000" required>
+          </div>
+        </div>
+        <div class="col-12">
+          <label class="field-label mb-2" for="buyNowPrice">즉시 구매</label>
+          <div class="input-group">
+            <span class="input-group-text">₩</span>
+            <input id="buyNowPrice" name="buyNowPrice" type="number" min="0" step="100" class="form-control" placeholder="선택 사항">
+          </div>
+          <div class="form-text">즉시구매가는 시작가 + 최소입찰단위 이상을 권장</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- 에러 박스 -->
+    <div class="form-section pt-0">
+      <div id="alertBox" class="alert alert-danger d-none" role="alert"></div>
+    </div>
+
+    <!-- 하단 CTA -->
+    <div class="fixed-cta">
+      <button id="submitBtn" class="btn btn-lg w-100" style="background: var(--brand); color:#fff;">작성 완료</button>
+    </div>
+  </main>
+</div>
+  <div layout:fragment="page-script">
+    <script type="module" src="/js/upload.js"></script>
+  </div>
+</body>
+</html>

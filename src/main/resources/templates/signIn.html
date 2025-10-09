@@ -1,0 +1,31 @@
+<!doctype html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}">
+<body class="d-flex flex-column min-vh-100">
+<div layout:fragment="content">
+  <main class="flex-grow-1">
+    <div class="login-container">
+      <h3 class="text-center mb-4">로그인</h3>
+      <form id="loginForm">
+        <div class="mb-3">
+          <label for="email" class="form-label">이메일</label>
+          <input type="email" class="form-control" id="email" placeholder="example@email.com" required>
+        </div>
+        <div class="mb-3">
+          <label for="password" class="form-label">비밀번호</label>
+          <input type="password" class="form-control" id="password" placeholder="********" required>
+        </div>
+        <button type="submit" class="btn btn-dark w-100">로그인</button>
+      </form>
+      <div class="text-center mt-3">
+        <small>계정이 없으신가요? <a href="/signup">회원가입</a></small>
+      </div>
+    </div>
+  </main>
+</div>
+<div layout:fragment="page-script">
+  <script type="module" src="/js/signin.js"></script>
+</div>
+</body>
+</html>

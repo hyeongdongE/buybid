@@ -1,0 +1,49 @@
+<nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm sticky-top" th:fragment="navbar">
+  <div class="site-container d-flex align-items-center w-100">
+
+    <!-- 브랜드 -->
+    <a class="navbar-brand fw-bold text-buybid ms-2" href="/main">BuyBid</a>
+
+    <!-- 데스크탑용 메뉴 -->
+    <div class="d-none d-lg-flex flex-grow-1 align-items-center">
+      <!-- 링크 -->
+      <ul class="navbar-nav mx-auto">
+        <li class="nav-item"><a class="nav-link" href="/main">홈</a></li>
+        <li class="nav-item"><a class="nav-link" href="/about">이용 방법</a></li>
+        <li class="nav-item"><a class="nav-link" href="/chatlist">채팅방</a></li>
+      </ul>
+
+      <!-- 버튼 -->
+      <div id="nav-buttons" class="ms-3 d-flex"></div>
+    </div>
+
+    <!-- 모바일 햄버거 (데스크탑에서는 숨김) -->
+    <button class="navbar-toggler ms-auto d-lg-none" type="button"
+            data-bs-toggle="offcanvas" data-bs-target="#mnav"
+            aria-controls="mnav" aria-label="메뉴 열기">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <!-- 모바일 오프캔버스 메뉴 -->
+    <div class="offcanvas offcanvas-end d-lg-none" tabindex="-1" id="mnav" aria-labelledby="mnavLabel">
+      <div class="offcanvas-header">
+        <h5 class="offcanvas-title fw-bold text-buybid" id="mnavLabel">BuyBid</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="닫기"></button>
+      </div>
+      <div class="offcanvas-body d-flex flex-column gap-3">
+
+        <!-- 링크 -->
+        <ul class="navbar-nav">
+          <li class="nav-item"><a class="nav-link py-2" href="/main">홈</a></li>
+          <li class="nav-item"><a class="nav-link py-2" href="/about">이용방법</a></li>
+          <li class="nav-item"><a class="nav-link py-2" href="/chatlist">채팅방</a></li>
+        </ul>
+
+        <hr class="my-2">
+
+        <!-- 버튼 -->
+        <div id="mnav-buttons" class="d-grid gap-2"></div>
+      </div>
+    </div>
+  </div>
+</nav>

@@ -1,0 +1,71 @@
+<!doctype html>
+<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout" xmlns:th="http://www.w3.org/1999/xhtml"
+      layout:decorate="~{layout}">
+<head>
+  <style>
+    .min-w-0{ min-width:0; }
+    .msg-1line{ overflow:hidden; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical; }
+    .msg-2line {
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      line-height: 1.4;
+      max-height: calc(1.4em * 2);
+    }
+    .item-compact{ padding:.6rem .75rem !important; }
+    .avatar-44{ width:44px; height:44px; }
+  </style>
+</head>
+<body>
+<div layout:fragment="content">
+  <div class="container-fluid py-3">
+    <div class="row g-3">
+      <div class="col-12 col-lg-5 col-xl-4">
+        <!-- Header -->
+        <h5 class="fw-bold mb-3">채팅</h5>
+
+        <!-- Chat List -->
+        <ul class="list-group shadow-sm">
+          <li class="list-group-item item-compact"
+              th:each="dto : ${dto}">
+            <a th:href="@{/chat/{id}(id=${dto.roomId})}" class="text-decoration-none text-reset">
+              <div class="d-flex align-items-center">
+                <div class="me-3 flex-shrink-0">
+                  <img th:src="${dto.url}"
+                       alt="상품 이미지"
+                       class="rounded"
+                       style="width:48px; height:48px; object-fit:cover;">
+                </div>
+
+                <!-- 채팅 정보 -->
+                <div class="flex-grow-1 min-w-0">
+                  <div class="d-flex align-items-baseline">
+            <span class="fw-semibold me-2 text-truncate"
+                  th:text="${dto.partnerName}"></span>
+                    <small class="text-muted text-nowrap ms-auto"
+                           th:text="${dto.timeAgo}"></small>
+                  </div>
+                  <small class="text-muted d-block msg-1line"
+                         th:text="${dto.message}"></small>
+                </div>
+              </div>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Desktop Preview -->
+      <div class="col-lg-7 col-xl-8 d-none d-lg-block">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h6 class="card-title mb-2">채팅 미리보기</h6>
+            <p class="card-text text-muted small">데스크탑에서는 채팅방을 선택하면 이 영역에 대화가 표시됩니다. 모바일에서는 목록 아이템을 눌러 상세로 이동하세요.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>>
+</body>
+</html>

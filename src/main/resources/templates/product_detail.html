@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ko"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layout}" xmlns="http://www.w3.org/1999/html">
+
+<body>
+<!-- 본문 슬롯 -->
+<main class="container my-5" layout:fragment="content">
+  <div class="row g-4"
+       th:attr="data-product-id=${dto.id},
+                  data-buynow=${dto.buyNowPrice},
+                  data-current=${dto.currentPrice},
+                  data-start=${dto.startPrice}">
+    <!-- 상품 이미지 (좌측) -->
+    <div class="col-md-6">
+      <div id="productCarousel" class="carousel slide" data-bs-ride="carousel">
+        <div class="carousel-inner">
+          <div th:each="img, iter : ${dto.url}"
+               th:class="'carousel-item' + (${iter.index} == 0 ? ' active' : '')">
+            <img th:src="${img.url}" class="d-block w-100" alt="상품 이미지" style="border-radius:8px;object-fit:cover;max-height:400px;">
+          </div>
+        </div>
+        <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+          <span class="carousel-control-prev-icon"></span>
+        </button>
+        <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+          <span class="carousel-control-next-icon"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 상품 정보 (우측) -->
+    <div class="col-md-6">
+      <h2 class="fw-bold mb-3" th:text="${dto.title}">상품 제목</h2>
+      <p class="text-muted mb-1">등록자: <strong th:text="${dto.userName}"></strong></p>
+      <hr>
+
+      <ul class="list-unstyled mb-4">
+        <li class="mb-2">
+          <i class="bi bi-cash-coin me-2"></i>
+          <strong>시작가:</strong>
+          <span th:text="${#numbers.formatInteger(dto.startPrice, 0, 'COMMA')}"></span>원
+        </li>
+        <li class="mb-2">
+          <i class="bi bi-cash-coin me-2"></i>
+          <strong>현재 입찰가:</strong>
+          <span id="currentBid" th:text="${dto.currentPrice == null ? '없음' : #numbers.formatInteger(dto.currentPrice, 0, 'COMMA') + '원'}"></span>
+        </li>
+        <li class="mb-2">
+          <i class="bi bi-arrow-up-circle me-2"></i>
+          <strong>최소 입찰 단위:</strong>
+          <span id="minStepText" th:text="${#numbers.formatInteger(dto.minIncrement, 0, 'COMMA')}"></span>원
+        </li>
+        <li class="mb-2">
+          <i class="bi bi-lightning-fill me-2 text-warning"></i>
+          <strong>즉시 구매가:</strong>
+          <span th:text="${dto.buyNowPrice == null ? '없음' : #numbers.formatInteger(dto.buyNowPrice, 0, 'COMMA') + '원'}"></span>
+        </li>
+      </ul>
+
+      <h5 class="fw-bold">상품 설명</h5>
+      <p class="text-muted" th:text="${dto.description}"></p>
+
+      <!-- 액션 -->
+      <div class="mb-4">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <h5 class="fw-bold mb-0">최대 한도 입찰</h5>
+        </div>
+        <p class="mb-2 small text-muted">
+          설정한 <strong>최대 한도</strong>까지 시스템이 자동으로 </br>(현재가 + 최소단위)로 경쟁자와 경쟁합니다!
+        </p>
+
+        <div class="mb-2">
+          현재 입찰가: <strong id="currentBidText" th:text="${dto.currentPrice == null ? '없음' : #numbers.formatInteger(dto.currentPrice, 0, 'COMMA') + '원'}"></strong><br/>
+          최소 입찰 단위: <strong id="minStepText2" th:text="${#numbers.formatInteger(dto.minIncrement, 0, 'COMMA')}"></strong>원
+        </div>
+
+        <div class="input-group mb-2" style="max-width:360px;">
+          <span class="input-group-text">최대 한도</span>
+          <input id="maxAmount" type="number" class="form-control" inputmode="numeric"
+                 placeholder="예: 1350000" aria-label="최대 한도 금액" min="0" th:max="${dto.buyNowPrice}" required>
+          <span class="input-group-text">원</span>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button id="proxyBidBtn" class="btn btn-buybid seg">최대 한도로 입찰</button>
+          <button id="buyNowBtn"
+                  class="btn btn-outline-dark"
+                  th:if="${dto.buyNowPrice != null}">
+            즉시 구매
+          </button>
+        </div>
+
+        <div id="bidMsg" class="mt-2 small"></div>
+
+        <div id="leaderBox" class="mt-2 small text-muted">
+          최고 입찰자: <strong id="leaderName" th:text="${dto.leaderName}"></strong>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div layout:fragment="page-script">
+  <script type="module">
+    const card = document.querySelector(".row.g-4");
+    const productId = card.dataset.productId;
+    const buynow = card.dataset.buynow;
+    const start = card.dataset.start;
+    document.getElementById("proxyBidBtn").addEventListener("click", async (e) => {
+      e.preventDefault();
+      const maxAmount = parseInt(document.getElementById("maxAmount").value, 10);
+      if (maxAmount >= buynow) {
+        alert("즉시 구매를 이용해주세요!");
+        return;
+      } else if (maxAmount < start) {
+        alert("시작가보다 낮습니다.");
+        return;
+      }
+
+      const res = await fetch(`/api/products/proxybid/${productId}`, {
+        credentials: "include",
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ maxAmount })
+      });
+
+      if (!res.ok) {
+        throw new Error("입찰 요청 실패");
+      }
+
+      const data = await res.json();
+
+      document.getElementById("leaderName").textContent = data.leaderName;
+      if (data.currentPrice == null) {
+        document.getElementById("currentBidText").textContent = "없음";
+        document.getElementById("currentBid").textContent = "없음";
+        alert(data.message);
+        return;
+      }
+      document.getElementById("currentBidText").textContent = data.currentPrice;
+      document.getElementById("currentBid").textContent = data.currentPrice.toLocaleString("ko-KR");
+      alert(data.message);
+    });
+    const buyNowBtn = document.getElementById("buyNowBtn");
+    let busy = false;
+    buyNowBtn.addEventListener("click", async (e) => {
+      e.preventDefault();
+      if (busy) return;
+      busy = true;
+      buyNowBtn.disabled = true;
+      try {
+        const res = await fetch(`/api/products/buynow/${productId}`, {
+          credentials: "include",
+          method: "POST"
+        });
+        const data = await res.json();
+        if (data.roomId == null) {
+          alert(data.message);
+          return;
+        }
+        alert(data.message);
+        location.href = `/chat/${data.roomId}`;
+      } catch (err) {
+        console.log(err)
+        alert("네트워크 오류 발생")
+    } finally {
+        busy = false;
+        buyNowBtn.disabled = false;
+    }
+  })
+  </script>
+</div>
+</body>
+</html>

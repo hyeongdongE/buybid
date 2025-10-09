@@ -1,0 +1,48 @@
+<!doctype html>
+<html xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+        layout:decorate="~{layout}">
+<body>
+<div layout:fragment="content">
+  <main class="flex-grow-1">
+    <!-- 목록 상단: 타이틀 + 정렬/필터 바 -->
+    <div class="site-container section px-2 px-md-4">
+      <div class="d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-2 mb-3">
+        <h4 class="section-title mb-0">📦 상품 리스트</h4>
+
+        <div class="d-flex flex-wrap gap-2">
+          <!-- 카테고리 -->
+          <select id="categorySelect" class="form-select form-select-sm" style="min-width:160px">
+            <option value="">전체 카테고리</option>
+            <option value="전자제품">전자제품</option>
+            <option value="패션/잡화">패션/잡화</option>
+            <option value="가구/생활">가구/생활</option>
+            <option value="취미/게임/도서">취미/게임/도서</option>
+            <option value="기타">기타</option>
+          </select>
+
+          <!-- 정렬 -->
+          <select id="sortSelect" class="form-select form-select-sm" style="min-width:160px">
+            <option value="recent">최신순</option>
+            <option value="priceAsc">낮은가격순</option>
+            <option value="priceDesc">높은가격순</option>
+            <option value="endSoon">마감임박</option>
+            <option value="popular">인기순</option>
+          </select>
+
+          <a class="btn btn-primary btn-sm ms-auto d-flex align-items-center gap-1" href="/productupload">
+            <i class="bi bi-plus-lg"></i>
+            <span class="d-none d-sm-inline">상품 등록</span>
+          </a>
+        </div>
+      </div>
+
+      <!-- 카드 그리드 -->
+      <div id="productGrid" class="row g-3 g-md-4"></div>
+    </div>
+  </main>
+</div>
+<div layout:fragment="page-script">
+  <script type="module" src="/js/product.js"></script>
+</div>
+</body>
+</html>
