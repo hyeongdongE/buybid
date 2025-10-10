@@ -64,7 +64,7 @@ public class ProductService {
         String sellarEmail = jwtTokenProvider.getEmail(refreshToken);
         UsersEntity sellar = usersRepository.findByEmail(sellarEmail).orElseThrow(null);
 
-        StatusEnum status = dto.getStartAt().isAfter(LocalDateTime.now()) ? StatusEnum.SCHEDULED : StatusEnum.RUNNING;
+        StatusEnum status = dto.getStartAt().isAfter(LocalDateTime.now(ZoneId.of("Asia/Seoul"))) ? StatusEnum.SCHEDULED : StatusEnum.RUNNING;
 
         ProductsEntity product = ProductsEntity.builder()
                 .title(dto.getTitle())
@@ -285,7 +285,7 @@ public class ProductService {
     @Transactional
     @Scheduled(fixedRate = 60000)
     public void productScheduler() {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
 
         List<ProductsEntity> toStart = productsRepository.findByStatusAndStartAtBefore(StatusEnum.SCHEDULED, now);
         for (ProductsEntity product : toStart) {
