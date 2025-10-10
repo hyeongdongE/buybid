@@ -1,7 +1,7 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: "jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&sslMode=REQUIRED"
+    url: "jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=false"
     username: ${DB_USER}
     password: ${DB_PASS}
     hikari:
@@ -18,7 +18,7 @@ spring:
       hibernate:
         format_sql: true
         jdbc.time_zone: Asia/Seoul
-        dialect: org.hibernate.dialect.MySQLDialect
+        dialect: org.hibernate.dialect.MySQL8Dialect   # 최신 MySQL이면 8Dialect로
 
 logging:
   level:
