@@ -1,12 +1,10 @@
 package com.example.saleapp.service;
 
-import com.example.saleapp.component.JwtTokenProvider;
 import com.example.saleapp.config.CustomUserDetail;
 import com.example.saleapp.dto.*;
 import com.example.saleapp.entity.*;
 import com.example.saleapp.repository.*;
 import com.example.saleapp.util.ThumbUtil;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,7 +19,6 @@ import org.springframework.ui.Model;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -38,8 +35,6 @@ import java.util.stream.Collectors;
 public class ProductService {
     private final ProductsRepository productsRepository;
     private final CategoriesRepository categoriesRepository;
-    private final JwtTokenProvider jwtTokenProvider;
-    private final UserService userService;
     private final UsersRepository usersRepository;
     private final ProductImageRepository productImageRepository;
     private final BidProxyRepository bidProxyRepository;
@@ -50,7 +45,7 @@ public class ProductService {
 
     // 상품 업로드 로직
     // Service: 기존 시그니처 변경 (HttpServletRequest 제거)
-    public ResponseEntity<String> productUpload(ProductDTO dto, CustomUserDetail user) throws IOException {
+    public ResponseEntity<String> productUpload(ProductDTO dto, CustomUserDetail user) throws Exception {
         // 0) 기본 검증
         if (dto.getImages() == null || dto.getOrders() == null
                 || dto.getImages().size() != dto.getOrders().size()) {
