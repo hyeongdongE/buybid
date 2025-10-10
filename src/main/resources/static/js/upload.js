@@ -150,7 +150,7 @@
 
             // 성공 시 목록으로 이동
             showAlert("등록되셨습니다.")
-            window.location.href = "/product";
+            window.location.href = "/main";
         } catch (err) {
             console.error(err);
             showAlert("네트워크 오류가 발생했습니다.");
