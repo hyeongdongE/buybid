@@ -1,9 +1,9 @@
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: "jdbc:mysql://buybid-database.cl28gmcm4mr9.ap-northeast-2.rds.amazonaws.com:3306/buybid?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&sslMode=REQUIRED"
-    username: admin
-    password: fight3563!
+    url: "jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&sslMode=REQUIRED"
+    username: ${DB_USER}
+    password: ${DB_PASS}
     hikari:
       maximum-pool-size: 15
       minimum-idle: 5
@@ -18,7 +18,7 @@ spring:
       hibernate:
         format_sql: true
         jdbc.time_zone: Asia/Seoul
-        dialect: org.hibernate.dialect.MySQL8Dialect   # MySQL 8.x면 명시 권장
+        dialect: org.hibernate.dialect.MySQLDialect
 
 logging:
   level:
