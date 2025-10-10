@@ -12,7 +12,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
 import java.util.List;
 
 @RestController
@@ -20,8 +19,6 @@ import java.util.List;
 @Slf4j
 public class ProductRController {
     private final ProductService productService;
-    private final ProductsRepository productsRepository;
-    private final ChatRoomRepository chatRoomRepository;
 
     // Product_Upload 상품 업로드
     @PostMapping("/api/upload")
