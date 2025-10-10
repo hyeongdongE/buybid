@@ -32,8 +32,8 @@ public class ProductRController {
     // Product_Upload 상품 업로드
     @PostMapping("/api/upload")
     public ResponseEntity<String> upload(@ModelAttribute ProductDTO dto,
-                                         HttpServletRequest request) throws IOException {
-        return productService.productUpload(dto, request);
+                                         @AuthenticationPrincipal CustomUserDetail user) throws IOException {
+        return productService.productUpload(dto, user);
     }
 
     // Product 페이지 상품 리스트 반환

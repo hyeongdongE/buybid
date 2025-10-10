@@ -49,23 +49,34 @@ public class ProductService {
     private String uploadDir;
 
     // 상품 업로드 로직
-    public ResponseEntity<String> productUpload(ProductDTO dto, HttpServletRequest request) throws IOException {
-        if (dto.getImages().size() != dto.getOrders().size()) {
-            return ResponseEntity.badRequest().build();
+    // Service: 기존 시그니처 변경 (HttpServletRequest 제거)
+    public ResponseEntity<String> productUpload(ProductDTO dto, CustomUserDetail user) throws IOException {
+        // 0) 기본 검증
+        if (dto.getImages() == null || dto.getOrders() == null
+                || dto.getImages().size() != dto.getOrders().size()) {
+            return ResponseEntity.badRequest().body("이미지/정렬 정보가 올바르지 않습니다.");
         }
         if (dto.getImages().size() > 10) {
-            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).build();
+            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body("이미지는 최대 10장까지 가능합니다.");
+        }
+        if (dto.getStartAt() == null || dto.getEndAt() == null || !dto.getEndAt().isAfter(dto.getStartAt())) {
+            return ResponseEntity.badRequest().body("시작/종료 시간이 올바르지 않습니다.");
         }
 
+        // 1) 카테고리
         CategoriesEntity category = categoriesRepository.findByName(dto.getCategory())
                 .orElseThrow(() -> new NoSuchElementException("해당 카테고리를 찾을 수 없습니다: " + dto.getCategory()));
 
-        String refreshToken = userService.extractFromCookie(request);
-        String sellarEmail = jwtTokenProvider.getEmail(refreshToken);
-        UsersEntity sellar = usersRepository.findByEmail(sellarEmail).orElseThrow(null);
+        // 2) 판매자 (SecurityContext 기반)
+        Long sellerId = user.getUser().getUserIdx();
+        UsersEntity seller = usersRepository.findById(sellerId)
+                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
 
-        StatusEnum status = dto.getStartAt().isAfter(LocalDateTime.now(ZoneId.of("Asia/Seoul"))) ? StatusEnum.SCHEDULED : StatusEnum.RUNNING;
+        // 3) 상태 결정 (KST 기준)
+        LocalDateTime nowKst = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
+        StatusEnum status = dto.getStartAt().isAfter(nowKst) ? StatusEnum.SCHEDULED : StatusEnum.RUNNING;
 
+        // 4) 상품 저장
         ProductsEntity product = ProductsEntity.builder()
                 .title(dto.getTitle())
                 .content(dto.getDescription())
@@ -76,35 +87,46 @@ public class ProductService {
                 .minIncrement(dto.getMinIncrement())
                 .buyNow(dto.getBuyNow())
                 .status(status)
-                .sellerIdx(sellar)
+                .sellerIdx(seller)
                 .build();
-
         productsRepository.save(product);
 
+        // 5) 디렉토리 준비
         Path productDir = Paths.get(uploadDir, "products", String.valueOf(product.getProductId()));
-        Path thumbDir = Paths.get(uploadDir, "products", String.valueOf(product.getProductId() + "_400"));
+        Path thumbDir   = Paths.get(uploadDir, "products", product.getProductId() + "_400");
         Files.createDirectories(productDir);
         Files.createDirectories(thumbDir);
 
-        for (int i=0; i < dto.getImages().size(); i++) {
+        // 6) 파일 저장 & 썸네일 생성
+        for (int i = 0; i < dto.getImages().size(); i++) {
             MultipartFile file = dto.getImages().get(i);
             Integer sort = dto.getOrders().get(i);
+
+            if (file == null || file.isEmpty()) {
+                return ResponseEntity.badRequest().body("빈 파일이 포함되어 있습니다.");
+            }
+            // 간단한 MIME 가드(선택)
+            String contentType = Optional.ofNullable(file.getContentType()).orElse("");
+            if (!contentType.startsWith("image/")) {
+                return ResponseEntity.badRequest().body("이미지 파일만 업로드할 수 있습니다.");
+            }
+
             String original = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
-            String ext = Optional.ofNullable(
-                    StringUtils.getFilenameExtension(original)
-            ).map(s -> "." + s).orElse(".jpg");
-            String stored = sort + ext;
+            String ext = Optional.ofNullable(StringUtils.getFilenameExtension(original))
+                    .map(String::toLowerCase)
+                    .map(s -> s.equals("jpeg") ? "jpg" : s)
+                    .map(s -> "." + s)
+                    .orElse(".jpg");
 
-            Path originalPath  = productDir.resolve(stored);
-            file.transferTo(originalPath .toFile());
+            String stored = sort + ext; // 원본은 원래 확장자 유지
+            Path originalPath = productDir.resolve(stored);
+            file.transferTo(originalPath.toFile());
 
+            // 썸네일은 jpg 고정
             String thumbStored = sort + ".jpg";
-
             Path thumbPath = thumbDir.resolve(thumbStored);
-            try(InputStream in = Files.newInputStream(originalPath)) {
+            try (InputStream in = Files.newInputStream(originalPath)) {
                 ThumbUtil.squareThumb(in, thumbPath, 400, "jpg", 0.85);
-            } catch (Exception e) {
-                throw new RuntimeException(e);
             }
 
             String url = "/files/products/" + product.getProductId() + "_400/" + thumbStored;
@@ -114,7 +136,6 @@ public class ProductService {
                     .sort(sort)
                     .productId(product)
                     .build();
-
             productImageRepository.save(imageEntity);
         }
 
