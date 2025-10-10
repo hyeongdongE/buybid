@@ -2,15 +2,9 @@ package com.example.saleapp.controller;
 
 import com.example.saleapp.config.CustomUserDetail;
 import com.example.saleapp.dto.*;
-import com.example.saleapp.entity.ChatRoomEntity;
-import com.example.saleapp.entity.ProductsEntity;
-import com.example.saleapp.entity.StatusEnum;
-import com.example.saleapp.entity.UsersEntity;
 import com.example.saleapp.repository.ChatRoomRepository;
 import com.example.saleapp.repository.ProductsRepository;
-import com.example.saleapp.repository.UsersRepository;
 import com.example.saleapp.service.ProductService;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +26,7 @@ public class ProductRController {
     // Product_Upload 상품 업로드
     @PostMapping("/api/upload")
     public ResponseEntity<String> upload(@ModelAttribute ProductDTO dto,
-                                         @AuthenticationPrincipal CustomUserDetail user) throws IOException {
+                                         @AuthenticationPrincipal CustomUserDetail user) throws Exception {
         return productService.productUpload(dto, user);
     }
 
