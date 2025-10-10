@@ -44,7 +44,6 @@ public class ProductService {
     private String uploadDir;
 
     // 상품 업로드 로직
-    // Service: 기존 시그니처 변경 (HttpServletRequest 제거)
     public ResponseEntity<String> productUpload(ProductDTO dto, CustomUserDetail user) throws Exception {
         // 0) 기본 검증
         if (dto.getImages() == null || dto.getOrders() == null

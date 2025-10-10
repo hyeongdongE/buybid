@@ -1,10 +1,12 @@
+// /js/product-upload.js
+// 🌟 모듈로 실행되므로 위 script 태그에 type="module" 필수
+import { getAccessToken, refreshToken } from '/js/auth.js'; // ✅ 추가
+
 (function () {
     const $ = (sel) => document.querySelector(sel);
     const pad = (n) => String(n).padStart(2, "0");
     const toLocal = (d) =>
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-      d.getHours()
-    )}:${pad(d.getMinutes())}`;
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
     const alertBox = $("#alertBox");
     const showAlert = (msg) => {
@@ -27,10 +29,17 @@
     let files = [];
     let urls = [];
 
-    const clearURLs = () => {
-        urls.forEach((u) => URL.revokeObjectURL(u));
-        urls = [];
-    };
+    const clearURLs = () => { urls.forEach((u) => URL.revokeObjectURL(u)); urls = []; };
+
+    async function authHeaders() {               // ✅ 이미 작성했던 함수 유지
+        let at = getAccessToken();
+        if (!at) {
+            const ok = await refreshToken();
+            if (!ok) { window.location.href = '/signin'; return null; }
+            at = getAccessToken();
+        }
+        return { Authorization: 'Bearer ' + at };
+    }
 
     function render() {
         clearURLs();
@@ -62,9 +71,7 @@
         if (counter) counter.textContent = `${files.length}/${MAX}`;
     }
 
-    function fileKey(f) {
-        return `${f.name}::${f.size}::${f.lastModified}`;
-    }
+    function fileKey(f) { return `${f.name}::${f.size}::${f.lastModified}`; }
 
     function add(list) {
         const existing = new Set(files.map(fileKey));
@@ -80,7 +87,7 @@
         render();
     }
 
-    pickBox?.addEventListener("click", () => input.click());
+    pickBox?.addEventListener("click", () => input?.click());
     input?.addEventListener("change", (e) => add(e.target.files));
 
     thumbs?.addEventListener("click", (e) => {
@@ -106,6 +113,9 @@
         const minIncrement = Number($("#minIncrement").value || 0);
         const buyNow = Number($("#buyNowPrice").value || 0);
 
+        // ✅ 이미지 최소 1장 검증 (서버 검증과 일치)
+        if (files.length === 0) return showAlert("최소 1장 이상의 이미지를 선택하세요.");
+
         if (!title) return showAlert("제목을 입력하세요.");
         if (!description) return showAlert("자세한 설명을 입력하세요.");
         if (!category) return showAlert("카테고리를 선택하세요.");
@@ -127,30 +137,39 @@
         const ordered = files.slice(0, 10);
         ordered.forEach((f, idx) => {
             fd.append("images", f, f.name);
-            fd.append("orders", String(idx + 1));
-            });
+            fd.append("orders", String(idx + 1)); // 서버 DTO의 List<Integer> orders와 매칭
+        });
 
-        // 버튼 중복 클릭 방지
         submitBtn.disabled = true;
         submitBtn.textContent = "등록 중...";
 
         try {
+            const headers = await authHeaders();
+            if (!headers) return; // refresh 실패 → /signin 이동됨
+
             const res = await fetch("/api/upload", {
                 method: "POST",
                 body: fd,
-                credentials: "include",
+                headers
             });
 
+            if (res.redirected && res.url.includes("/signin")) {
+                window.location.href = "/signin";
+                return;
+            }
+            if (res.status === 401 || res.status === 403) {
+                window.location.href = "/signin";
+                return;
+            }
             if (!res.ok) {
-                const text = await res.text();
-                console.error("등록 실패 응답:", text);
+                const text = await res.text().catch(() => "");
+                console.error("등록 실패 응답:", res.status, text);
                 showAlert("등록에 실패했습니다. 입력값을 확인하거나 잠시 후 다시 시도해주세요.");
                 return;
             }
 
-            // 성공 시 목록으로 이동
-            showAlert("등록되셨습니다.")
-            window.location.href = "/main";
+            const next = res.headers.get("Location") || "/main";
+            window.location.replace(next);
         } catch (err) {
             console.error(err);
             showAlert("네트워크 오류가 발생했습니다.");
