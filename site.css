@@ -87,7 +87,7 @@ h1 { font-size: 1.625rem; line-height: 1.25; }
 .metric-evidence { margin-top: auto; padding-top: .72rem; border-top: 1px solid var(--line); }
 .summary-screens {
   display: grid;
-  grid-template-columns: repeat(3, minmax(10rem, 1fr));
+  grid-template-columns: repeat(3, minmax(12rem, 1fr));
   gap: .5rem;
   margin-top: .75rem;
   overflow-x: auto;
