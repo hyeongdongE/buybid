@@ -85,11 +85,46 @@ h1 { font-size: 1.625rem; line-height: 1.25; }
 .results p { color: var(--muted); font-size: .91rem; line-height: 1.6; }
 .results .metric-context { margin-bottom: 1.15rem; color: var(--accent); font-size: .86rem; }
 .metric-evidence { margin-top: auto; padding-top: .72rem; border-top: 1px solid var(--line); }
+.capture-view { min-width: 0; margin: .75rem 0 0; padding: 0; border: 0; }
+.capture-view > input, .capture-view > legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.capture-view > label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: .3rem .7rem;
+  border: 1px solid var(--line);
+  border-radius: .4rem;
+  background: var(--card);
+  color: var(--muted);
+  font-size: .88rem;
+  cursor: pointer;
+}
+.capture-view > label:hover { background: var(--tint); }
+#capture-mobile:checked ~ label[for="capture-mobile"],
+#capture-desktop:checked ~ label[for="capture-desktop"] {
+  border-color: var(--accent);
+  background: var(--tint);
+  color: var(--accent);
+  font-weight: 760;
+}
+#capture-mobile:focus-visible ~ label[for="capture-mobile"],
+#capture-desktop:focus-visible ~ label[for="capture-desktop"] { outline: 2px solid var(--accent); outline-offset: 2px; }
+#capture-mobile:checked ~ .summary-screens--desktop,
+#capture-desktop:checked ~ .summary-screens--mobile { display: none; }
 .summary-screens {
   display: grid;
   grid-template-columns: repeat(3, minmax(12rem, 1fr));
   gap: .5rem;
-  margin-top: .75rem;
+  margin-top: .5rem;
   overflow-x: auto;
 }
 .summary-screens figure { min-width: 0; }
