@@ -104,6 +104,7 @@
 
 <div layout:fragment="page-script">
   <script type="module">
+    import { authenticatedFetch, errorMessage } from '/js/auth.js';
     const card = document.querySelector(".row.g-4");
     const productId = card.dataset.productId;
     const buynow = card.dataset.buynow;
@@ -119,7 +120,7 @@
         return;
       }
 
-      const res = await fetch(`/api/products/proxybid/${productId}`, {
+      const res = await authenticatedFetch(`/api/products/proxybid/${productId}`, {
         credentials: "include",
         method: "POST",
         headers: {
@@ -129,7 +130,8 @@
       });
 
       if (!res.ok) {
-        throw new Error("입찰 요청 실패");
+        alert(await errorMessage(res, "입찰 요청 실패"));
+        return;
       }
 
       const data = await res.json();
@@ -147,16 +149,17 @@
     });
     const buyNowBtn = document.getElementById("buyNowBtn");
     let busy = false;
-    buyNowBtn.addEventListener("click", async (e) => {
+    buyNowBtn?.addEventListener("click", async (e) => {
       e.preventDefault();
       if (busy) return;
       busy = true;
       buyNowBtn.disabled = true;
       try {
-        const res = await fetch(`/api/products/buynow/${productId}`, {
+        const res = await authenticatedFetch(`/api/products/buynow/${productId}`, {
           credentials: "include",
           method: "POST"
         });
+        if (!res.ok) throw new Error(await errorMessage(res, "요청을 처리하지 못했습니다."));
         const data = await res.json();
         if (data.roomId == null) {
           alert(data.message);
@@ -166,7 +169,7 @@
         location.href = `/chat/${data.roomId}`;
       } catch (err) {
         console.log(err)
-        alert("네트워크 오류 발생")
+        alert(err.message || "요청을 처리하지 못했습니다.");
     } finally {
         busy = false;
         buyNowBtn.disabled = false;

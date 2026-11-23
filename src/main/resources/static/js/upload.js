@@ -1,6 +1,6 @@
 // /js/product-upload.js
 // 🌟 모듈로 실행되므로 위 script 태그에 type="module" 필수
-import { getAccessToken, refreshToken } from '/js/auth.js'; // ✅ 추가
+import { authenticatedFetch, errorMessage } from '/js/auth.js';
 
 (function () {
     const $ = (sel) => document.querySelector(sel);
@@ -30,16 +30,6 @@ import { getAccessToken, refreshToken } from '/js/auth.js'; // ✅ 추가
     let urls = [];
 
     const clearURLs = () => { urls.forEach((u) => URL.revokeObjectURL(u)); urls = []; };
-
-    async function authHeaders() {               // ✅ 이미 작성했던 함수 유지
-        let at = getAccessToken();
-        if (!at) {
-            const ok = await refreshToken();
-            if (!ok) { window.location.href = '/signin'; return null; }
-            at = getAccessToken();
-        }
-        return { Authorization: 'Bearer ' + at };
-    }
 
     function render() {
         clearURLs();
@@ -144,27 +134,18 @@ import { getAccessToken, refreshToken } from '/js/auth.js'; // ✅ 추가
         submitBtn.textContent = "등록 중...";
 
         try {
-            const headers = await authHeaders();
-            if (!headers) return; // refresh 실패 → /signin 이동됨
 
-            const res = await fetch("/api/upload", {
+            const res = await authenticatedFetch("/api/upload", {
                 method: "POST",
-                body: fd,
-                headers
+                body: fd
             });
 
-            if (res.redirected && res.url.includes("/signin")) {
-                window.location.href = "/signin";
-                return;
-            }
-            if (res.status === 401 || res.status === 403) {
-                window.location.href = "/signin";
+            if (res.status === 401) {
+                window.location.href = "/signin?next=%2Fproductupload";
                 return;
             }
             if (!res.ok) {
-                const text = await res.text().catch(() => "");
-                console.error("등록 실패 응답:", res.status, text);
-                showAlert("등록에 실패했습니다. 입력값을 확인하거나 잠시 후 다시 시도해주세요.");
+                showAlert(await errorMessage(res, "등록에 실패했습니다. 입력값을 확인해주세요."));
                 return;
             }
 

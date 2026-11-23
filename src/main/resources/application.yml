@@ -5,11 +5,13 @@ spring:
     multipart:
       max-file-size: 10MB
       max-request-size: 30MB
+  mvc:
+    problemdetails:
+      enabled: true
 
 jwt:
-  # 운영에선 환경변수/Secrets Manager로 주입
-  secret: ${JWT_SECRET:rCWytaQ1SG/fT6V18u0PGgFNbY7hJXsn9kNcrQ+s/JA=}
+  secret: ${JWT_SECRET}
 
 app:
-  # 운영(E2C Linux)에서는 리눅스 경로로 덮어쓰기
-  upload-dir: C:\uploads\image
+  upload-dir: ${BUYBID_UPLOAD_DIR:./uploads}
+  cookie-secure: true

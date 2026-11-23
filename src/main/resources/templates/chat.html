@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="ko" xmlns:th="http://www.w3.org/1999/xhtml">
 <head>
+  <meta name="csrf-token" th:content="${_csrf.token}">
   <meta charset="UTF-8" />
   <title>채팅방</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -58,6 +59,7 @@
   </header>
 
   <!-- 메시지 리스트 -->
+  <button type="button" id="previous-chat" class="btn btn-link btn-sm" hidden>이전 대화 불러오기</button>
   <main id="chat-box"
         class="chat-box d-flex flex-column gap-2 p-3"
         th:data-room-id="${dto.roomId}"

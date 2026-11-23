@@ -7,7 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "product_image")
+@Table(name = "product_image", uniqueConstraints = @UniqueConstraint(name = "uk_product_image_sort", columnNames = {"product_id", "sort"}))
 @Data
 @Builder
 @NoArgsConstructor

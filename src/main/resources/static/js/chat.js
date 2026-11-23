@@ -1,4 +1,4 @@
-import { getAccessToken, refreshToken } from "/js/auth.js";
+import { authenticatedFetch, refreshSession } from "/js/auth.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     const chatBox = document.getElementById('chat-box');
@@ -7,51 +7,45 @@ document.addEventListener('DOMContentLoaded', () => {
     const input = document.getElementById('chat-input');
     const sendBtn = document.getElementById('send-btn');
 
+    const previous = document.getElementById('previous-chat');
+    const messages = new Map();
+    let before;
+    let loading = false;
     let stomp;
     let _lastMinuteKey = null;
     let _lastDateKey = null;
     let _lastSide = null;
 
-    async function getValidToken() {
-        let token = getAccessToken();
-        if (!token) {
-            const ok = await refreshToken();
-            if (!ok) { location.href = '/signin'; return null; }
-            token = getAccessToken();
+    async function loadHistory(cursor) {
+        if (loading) return;
+        loading = true;
+        previous.disabled = true;
+        try {
+            const query = cursor ? `?before=${encodeURIComponent(cursor)}` : '';
+            const response = await authenticatedFetch(`/chat/history/${roomId}${query}`);
+            if (!response.ok) throw new Error("Unable to load chat history");
+            const page = await response.json();
+            const oldHeight = chatBox.scrollHeight;
+            const oldTop = chatBox.scrollTop;
+            before = page.nextBefore;
+            for (const message of page.messages) messages.set(message.chatId, message);
+            chatBox.replaceChildren();
+            _lastMinuteKey = _lastDateKey = _lastSide = null;
+            const ordered = [...messages.values()].sort((first, second) => first.chatId - second.chatId);
+            for (const message of ordered) appendMessage(message, userId);
+            if (cursor) chatBox.scrollTop = oldTop + chatBox.scrollHeight - oldHeight;
+        } catch (error) {
+            console.error("채팅 이력을 불러오지 못했습니다.", error);
+        } finally {
+            loading = false;
+            previous.hidden = !before;
+            previous.disabled = !before;
         }
-        return token;
     }
 
-    async function loadHistory(token) {
-        let res = await fetch(`/chat/history/${roomId}`, {
-            headers: { 'Authorization': 'Bearer ' + token },
-            credentials: 'include'
-        });
+    previous.addEventListener('click', () => loadHistory(before));
 
-        if (res.status === 401) {
-            const ok = await refreshToken();
-            if (!ok) { location.href = '/signin'; return; }
-            token = getAccessToken();
-            res = await fetch(`/chat/history/${roomId}`, {
-                headers: { 'Authorization': 'Bearer ' + token },
-                credentials: 'include'
-            });
-        }
-
-        if (!res.ok) {
-            console.error('히스토리 로딩 실패', res.status);
-            return;
-        }
-
-        const list = await res.json();
-        list.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-        _lastMinuteKey = null;
-        _lastSide = null;
-        for (const m of list) appendMessage(m, userId);
-        chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    async function connectWS(token, retry = 0) {
+    async function connectWS(retry = 0) {
         if (!window.SockJS || !window.Stomp) {
             console.error('SockJS/Stomp 전역 미로딩');
             return;
@@ -64,22 +58,21 @@ document.addEventListener('DOMContentLoaded', () => {
         stomp.heartbeat.incoming = 10000;
 
         stomp.connect(
-            { Authorization: 'Bearer ' + token },
+            {},
             () => {
                 console.log('STOMP connected');
                 stomp.subscribe(`/topic/room.${roomId}`, (res) => {
                     const msg = JSON.parse(res.body);
-                    if (Number(msg.senderId) !== Number(userId)) appendMessage(msg, userId);
+                    if (!messages.has(msg.chatId)) {
+                        messages.set(msg.chatId, msg);
+                        appendMessage(msg, userId);
+                    }
                 });
             },
             async (err) => {
                 console.error('STOMP connect error:', err);
-                if (retry < 1) {
-                    const ok = await refreshToken();
-                    if (ok) {
-                        const newToken = getAccessToken();
-                        return connectWS(newToken, retry + 1);
-                    }
+                if (retry < 1 && await refreshSession()) {
+                    return connectWS(retry + 1);
                 }
             }
         );
@@ -88,7 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function sendMessage() {
         const content = input.value.trim();
         if (!content || !stomp || !stomp.connected) return;
-        appendMessage({ senderId: userId, content, createdAt: new Date() }, userId);
         // 서버 전송
         stomp.send(`/app/chat.send.${roomId}`, {}, JSON.stringify({ content }));
         input.value = '';
@@ -156,10 +148,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     (async () => {
-        const token = await getValidToken();
-        if (!token) return;
-        await loadHistory(token);
-        await connectWS(token);
+        await loadHistory();
+        await connectWS();
     })();
 
 });

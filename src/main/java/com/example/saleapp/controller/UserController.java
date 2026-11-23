@@ -25,13 +25,13 @@ public class UserController {
 
     @PostMapping("/signup")
     public String signup(@ModelAttribute("signUpDTO") SignUpDTO dto, Model model) {
-        if (!(dto.getPassword().equals(dto.getConfirmPassword()))) {
-            model.addAttribute("msg", "비밀번호가 일치하지않습니다.");
+        try {
+            userService.signup(dto);
+        } catch (IllegalArgumentException exception) {
+            model.addAttribute("msg", exception.getMessage());
             model.addAttribute("redirectURL", "/signup");
             return "message";
         }
-
-        userService.signup(dto);
         model.addAttribute("msg", "회원가입 성공하셨습니다!");
         model.addAttribute("redirectURL", "/signin");
         return "message";

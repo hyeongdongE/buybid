@@ -1,17 +1,17 @@
 package com.example.saleapp.controller;
 
+import com.example.saleapp.config.CustomUserDetail;
 import com.example.saleapp.dto.SignInDTO;
 import com.example.saleapp.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
-@Slf4j
 @RestController
 @RequiredArgsConstructor
 public class UserRController {
@@ -19,8 +19,8 @@ public class UserRController {
 
     // 로그인
     @PostMapping("/api/signin")
-    public ResponseEntity<Map<String, String>> signin(@RequestBody SignInDTO dto, HttpServletResponse response) {
-        return userService.signin(dto, response);
+    public ResponseEntity<Map<String, String>> signin(@RequestBody SignInDTO dto) {
+        return userService.signin(dto);
     }
 
     // refreshToken
@@ -31,7 +31,13 @@ public class UserRController {
 
     // 로그아웃
     @PostMapping("/api/logout")
-    public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
-        return userService.logout(request, response);
+    public ResponseEntity<Void> logout(HttpServletRequest request,
+            @AuthenticationPrincipal CustomUserDetail user) {
+        return userService.logout(request, user == null ? null : user.getUsername());
+    }
+
+    @GetMapping("/api/session")
+    public ResponseEntity<Void> session() {
+        return ResponseEntity.noContent().header("Cache-Control", "no-store").build();
     }
 }

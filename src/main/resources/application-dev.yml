@@ -1,16 +1,11 @@
 spring:
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/saleapp?useSSL=false&serverTimezone=Asia/Seoul&characterEncoding=UTF-8&allowPublicKeyRetrieval=true
-    username: root
-    password: qwer1234
+    url: ${BUYBID_DB_URL:jdbc:mysql://127.0.0.1:3306/buybid}
+    username: ${BUYBID_DB_USER}
+    password: ${BUYBID_DB_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
+      ddl-auto: validate
 
 app:
-  upload-dir: C:\uploads\image
+  cookie-secure: false

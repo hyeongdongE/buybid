@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 @Builder
 public class ChatDTO {
     private Long roomId;
+    private Long chatId;
     private Long senderId;
     private String content;
     private LocalDateTime createdAt;

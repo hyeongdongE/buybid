@@ -7,7 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "chatroom")
+@Table(name = "chatroom", uniqueConstraints = @UniqueConstraint(name = "uk_chatroom_product", columnNames = "product_id"))
 @Builder
 @Data
 @NoArgsConstructor
@@ -27,6 +27,6 @@ public class ChatRoomEntity {
     private UsersEntity sellarId;
 
     @ManyToOne
-    @JoinColumn(name = "productId")
+    @JoinColumn(name = "product_id")
     private ProductsEntity productId;
 }

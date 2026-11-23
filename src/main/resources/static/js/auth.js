@@ -1,24 +1,32 @@
-let accessToken = null;
+let refreshInProgress;
 
-export function setAccessToken(token) {
-    accessToken = token;
-}
-
-export function getAccessToken() {
-    return accessToken;
-}
-
-export async function refreshToken() {
-    const res = await fetch("/api/refresh", {
-        method: "POST",
-        credentials: "include"
-    });
-
-    if (!res.ok) {
-        return false;
+export function csrfFetch(url, options = {}) {
+    const headers = new Headers(options.headers);
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (csrf && !/^(GET|HEAD|OPTIONS)$/i.test(options.method ?? "GET")) {
+        headers.set("X-XSRF-TOKEN", csrf);
     }
+    return fetch(url, { ...options, credentials: "same-origin", headers });
+}
 
-    const data = await res.json();
-    setAccessToken(data.accessToken);
-    return true;
+export function refreshSession() {
+    if (!refreshInProgress) {
+        refreshInProgress = csrfFetch("/api/refresh", { method: "POST" })
+            .then(response => response.ok)
+            .finally(() => { refreshInProgress = undefined; });
+    }
+    return refreshInProgress;
+}
+
+export async function authenticatedFetch(url, options) {
+    const response = await csrfFetch(url, options);
+    if (response.status === 401 && await refreshSession()) {
+        return csrfFetch(url, options);
+    }
+    return response;
+}
+
+export async function errorMessage(response, fallback) {
+    const body = await response.json().catch(() => ({}));
+    return body.detail || fallback;
 }

@@ -4,25 +4,21 @@ import com.example.saleapp.config.CustomUserDetail;
 import com.example.saleapp.dto.*;
 import com.example.saleapp.entity.*;
 import com.example.saleapp.repository.*;
-import com.example.saleapp.util.ThumbUtil;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.ui.Model;
-import org.springframework.util.StringUtils;
-import org.springframework.web.multipart.MultipartFile;
 
-import java.io.InputStream;
-import java.nio.file.Files;
+import java.io.IOException;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -35,136 +31,99 @@ import java.util.stream.Collectors;
 public class ProductService {
     private final ProductsRepository productsRepository;
     private final CategoriesRepository categoriesRepository;
-    private final UsersRepository usersRepository;
+
     private final ProductImageRepository productImageRepository;
     private final BidProxyRepository bidProxyRepository;
     private final ChatRoomRepository chatRoomRepository;
+    private final TransactionTemplate auctionTransaction;
 
-    @Value("${app.upload-dir}")
-    private String uploadDir;
+    private final ProductImageStorage imageStorage;
 
-    // 상품 업로드 로직
-    public ResponseEntity<String> productUpload(ProductDTO dto, CustomUserDetail user) throws Exception {
-        // 0) 기본 검증
-        if (dto.getImages() == null || dto.getOrders() == null
-                || dto.getImages().size() != dto.getOrders().size()) {
-            return ResponseEntity.badRequest().body("이미지/정렬 정보가 올바르지 않습니다.");
-        }
-        if (dto.getImages().size() > 10) {
-            return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body("이미지는 최대 10장까지 가능합니다.");
-        }
-        if (dto.getStartAt() == null || dto.getEndAt() == null || !dto.getEndAt().isAfter(dto.getStartAt())) {
-            return ResponseEntity.badRequest().body("시작/종료 시간이 올바르지 않습니다.");
-        }
-
-        // 1) 카테고리
+    @Transactional
+    public ResponseEntity<String> productUpload(ProductDTO dto, CustomUserDetail user) {
+        LocalDateTime now = auctionNow();
+        validateUpload(dto, now);
         CategoriesEntity category = categoriesRepository.findByName(dto.getCategory())
-                .orElseThrow(() -> new NoSuchElementException("해당 카테고리를 찾을 수 없습니다: " + dto.getCategory()));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "카테고리를 선택하세요."));
 
-        // 2) 판매자 (SecurityContext 기반)
-        Long sellerId = user.getUser().getUserIdx();
-        UsersEntity seller = usersRepository.findById(sellerId)
-                .orElseThrow(() -> new NoSuchElementException("사용자를 찾을 수 없습니다."));
-
-        // 3) 상태 결정 (KST 기준)
-        LocalDateTime nowKst = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
-        StatusEnum status = dto.getStartAt().isAfter(nowKst) ? StatusEnum.SCHEDULED : StatusEnum.RUNNING;
-
-        // 4) 상품 저장
-        ProductsEntity product = ProductsEntity.builder()
-                .title(dto.getTitle())
-                .content(dto.getDescription())
-                .cateId(category)
-                .startAt(dto.getStartAt())
-                .endAt(dto.getEndAt())
-                .startPrice(dto.getStartPrice())
-                .minIncrement(dto.getMinIncrement())
-                .buyNow(dto.getBuyNow())
-                .status(status)
-                .sellerIdx(seller)
-                .build();
-        productsRepository.save(product);
-
-        // 5) 디렉토리 준비
-        Path productDir = Paths.get(uploadDir, "products", String.valueOf(product.getProductId()));
-        Path thumbDir   = Paths.get(uploadDir, "products", product.getProductId() + "_400");
-        Files.createDirectories(productDir);
-        Files.createDirectories(thumbDir);
-
-        // 6) 파일 저장 & 썸네일 생성
-        for (int i = 0; i < dto.getImages().size(); i++) {
-            MultipartFile file = dto.getImages().get(i);
-            Integer sort = dto.getOrders().get(i);
-
-            if (file == null || file.isEmpty()) {
-                return ResponseEntity.badRequest().body("빈 파일이 포함되어 있습니다.");
+        Path staged = null;
+        try {
+            staged = imageStorage.stage();
+            for (int index = 0; index < dto.getImages().size(); index++) {
+                imageStorage.thumbnail(dto.getImages().get(index), staged.resolve(dto.getOrders().get(index) + ".jpg"));
             }
-            // 간단한 MIME 가드(선택)
-            String contentType = Optional.ofNullable(file.getContentType()).orElse("");
-            if (!contentType.startsWith("image/")) {
-                return ResponseEntity.badRequest().body("이미지 파일만 업로드할 수 있습니다.");
-            }
+            ProductsEntity product = productsRepository.save(ProductsEntity.builder()
+                    .title(dto.getTitle().strip()).content(dto.getDescription().strip()).cateId(category)
+                    .startAt(dto.getStartAt()).endAt(dto.getEndAt()).startPrice(dto.getStartPrice())
+                    .minIncrement(dto.getMinIncrement()).buyNow(dto.getBuyNow())
+                    .status(dto.getStartAt().isAfter(now) ? StatusEnum.SCHEDULED : StatusEnum.RUNNING)
+                    .sellerIdx(user.getUser()).build());
 
-            String original = StringUtils.cleanPath(Objects.requireNonNull(file.getOriginalFilename()));
-            String ext = Optional.ofNullable(StringUtils.getFilenameExtension(original))
-                    .map(String::toLowerCase)
-                    .map(s -> s.equals("jpeg") ? "jpg" : s)
-                    .map(s -> "." + s)
-                    .orElse(".jpg");
-
-            String stored = sort + ext; // 원본은 원래 확장자 유지
-            Path originalPath = productDir.resolve(stored);
-            file.transferTo(originalPath.toFile());
-
-            // 썸네일은 jpg 고정
-            String thumbStored = sort + ".jpg";
-            Path thumbPath = thumbDir.resolve(thumbStored);
-            try (InputStream in = Files.newInputStream(originalPath)) {
-                ThumbUtil.squareThumb(in, thumbPath, 400, "jpg", 0.85);
-            }
-
-            String url = "/files/products/" + product.getProductId() + "_400/" + thumbStored;
-
-            ProductImageEntity imageEntity = ProductImageEntity.builder()
-                    .url(url)
-                    .sort(sort)
-                    .productId(product)
-                    .build();
-            productImageRepository.save(imageEntity);
+            List<ProductImageEntity> images = dto.getOrders().stream().map(sort -> ProductImageEntity.builder()
+                    .url("/files/products/" + product.getProductId() + "_400/" + sort + ".jpg")
+                    .sort(sort).productId(product).build()).toList();
+            productImageRepository.saveAllAndFlush(images);
+            imageStorage.publish(staged, product.getProductId());
+            return ResponseEntity.ok("등록 성공");
+        } catch (IOException exception) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "이미지를 저장하지 못했습니다.", exception);
+        } finally {
+            if (staged != null) imageStorage.clean(staged);
         }
-
-        return ResponseEntity.ok("등록 성공");
     }
 
-    // 상품 리스트 반환 로직
-    public List<ProductCardDTO> prouductList() {
-        List<ProductsEntity> products = productsRepository.findAll(
-                Sort.by(Sort.Direction.DESC, "productId")
-        );
-        var now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
-        List<Long> ids = products.stream().map(ProductsEntity::getProductId).toList();
-        Map<Long, String> imgMap = productImageRepository.findMainForProductIds(ids).stream()
-                .collect(Collectors.toMap(RowDTO::getProductId,
-                        RowDTO::getUrl));
+    private void validateUpload(ProductDTO dto, LocalDateTime now) {
+        if (dto.getTitle() == null || dto.getTitle().isBlank() || dto.getTitle().strip().length() > 80
+                || dto.getDescription() == null || dto.getDescription().isBlank() || dto.getDescription().strip().length() > 255
+                || dto.getCategory() == null || dto.getCategory().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "상품 제목, 설명 및 카테고리를 확인하세요.");
+        }
+        if (dto.getStartAt() == null || dto.getEndAt() == null || !dto.getEndAt().isAfter(dto.getStartAt())
+                || !dto.getEndAt().isAfter(now)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "경매 시작 및 종료 시간을 확인하세요.");
+        }
+        if (dto.getStartPrice() == null || dto.getStartPrice() < 0 || dto.getMinIncrement() == null
+                || dto.getMinIncrement() <= 0 || (dto.getBuyNow() != null
+                && dto.getBuyNow() < (long) dto.getStartPrice() + dto.getMinIncrement())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "경매 금액을 확인하세요.");
+        }
+        if (dto.getImages() == null || dto.getImages().isEmpty() || dto.getImages().size() > 10
+                || dto.getOrders() == null || dto.getOrders().size() != dto.getImages().size()
+                || !new HashSet<>(dto.getOrders()).equals(
+                        new HashSet<>(java.util.stream.IntStream.rangeClosed(1, dto.getImages().size()).boxed().toList()))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "1~10장의 이미지와 이미지 순서를 확인하세요.");
+        }
+    }
 
-        return products.stream().map(p -> ProductCardDTO.builder()
-                        .id(p.getProductId())
-                        .status(p.getStatus())
-                        .startPrice((p.getCurrentPrice() != null) ? p.getCurrentPrice() : p.getStartPrice())
-                        .title(p.getTitle())
-                        .startAt(p.getStartAt())
-                        .endAt(p.getEndAt())
-                        .category(p.getCateId().getName())
-                        .imageUrl(imgMap.getOrDefault(p.getProductId(), "/image/default_product.png"))
-                        .ddayText(changeDay(p.getEndAt(), now))
-                        .build())
-                .toList();
+    public ProductPage productList(int page, int requestedSize, String category, String sort) {
+        if (page < 0 || requestedSize < 1 || (long) page * Math.min(requestedSize, 50) > Integer.MAX_VALUE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "상품 페이지 범위가 올바르지 않습니다.");
+        }
+        Sort ordering = switch (sort) {
+            case "priceAsc" -> Sort.by(Sort.Order.asc("price"), Sort.Order.desc("productId"));
+            case "priceDesc" -> Sort.by(Sort.Order.desc("price"), Sort.Order.desc("productId"));
+            case "endSoon" -> Sort.by(Sort.Order.asc("endAt"), Sort.Order.desc("productId"));
+            case "recent" -> Sort.by(Sort.Order.desc("productId"));
+            default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "지원하지 않는 상품 정렬입니다.");
+        };
+        var results = productsRepository.findCatalog(category == null || category.isBlank() ? null : category,
+                PageRequest.of(page, Math.min(requestedSize, 50), ordering));
+        var now = auctionNow();
+        var ids = results.stream().map(ProductCardRow::getProductId).toList();
+        Map<Long, String> images = ids.isEmpty() ? Map.of() : productImageRepository.findMainForProductIds(ids).stream()
+                .collect(Collectors.toMap(RowDTO::getProductId, RowDTO::getUrl));
+        var cards = results.stream().map(product -> ProductCardDTO.builder()
+                .id(product.getProductId()).status(product.getStatus()).startPrice(product.getPrice())
+                .title(product.getTitle()).startAt(product.getStartAt()).endAt(product.getEndAt())
+                .category(product.getCategory()).ddayText(changeDay(product.getEndAt(), now))
+                .imageUrl(images.getOrDefault(product.getProductId(), "/image/default_product.png")).build()).toList();
+        return new ProductPage(cards, results.getNumber(), results.getSize(), results.getTotalElements(), results.getTotalPages());
     }
 
     // 상품 상세페이지
     public String productdetail(Long productId, Model model) {
-        ProductsEntity product = productsRepository.findById(productId).orElseThrow();
-        UsersEntity user = usersRepository.findById(product.getSellerIdx().getUserIdx()).orElseThrow();
+        ProductsEntity product = productsRepository.findById(productId).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "상품을 찾을 수 없습니다."));
+        UsersEntity user = product.getSellerIdx();
         List<ImageViewDTO> sorted = productImageRepository.findByProductId_ProductIdOrderBySortAsc(productId)
                 .stream()
                 .sorted(Comparator.comparing(ImageViewDTO::getSort))
@@ -186,153 +145,124 @@ public class ProductService {
         return "product_detail";
     }
 
-    // 상품 경매 기능
+    @Transactional
     public BidDTO bidProxy(Long productId, BidRequestDTO dto, CustomUserDetail user) {
-        Long userId = user.getUser().getUserIdx();
-        ProductsEntity product = productsRepository.findById(productId).orElseThrow();
-
-        // 동일한 아이디 요청
-        if (product.getSellerIdx().getUserIdx().equals(user.getUser().getUserIdx())) {
-            return BidDTO.builder()
-                    .leaderName((product.getLeaderIdx() != null) ? product.getLeaderIdx().getName() : "없음")
-                    .currentPrice(product.getCurrentPrice() != null ? product.getCurrentPrice() : null)
-                    .message("본인이 올린 상품을 입찰할 수 없습니다.").build();
+        ProductsEntity product = lockOpenAuction(productId, user);
+        int floor = product.getCurrentPrice() == null ? product.getStartPrice() : product.getCurrentPrice();
+        if (dto.getMaxAmount() < floor || dto.getMaxAmount() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재가 이상의 최대 입찰가를 입력하세요.");
         }
-
-        BidProxyEntity leader = bidProxyRepository.findFirstByProductId_ProductIdOrderByMaxPriceDesc(productId).orElse(null);
-        BidProxyEntity proxy = bidProxyRepository.findByProductId_ProductIdAndUserId_UserIdx(productId, userId)
-                .orElse(BidProxyEntity.builder()
-                        .productId(product)
-                        .userId(user.getUser())
-                        .build());
-
+        if (product.getBuyNow() != null && dto.getMaxAmount() >= product.getBuyNow()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "최대 입찰가는 즉시 구매가보다 낮아야 합니다.");
+        }
+        BidProxyEntity proxy = bidProxyRepository.findByProductId_ProductIdAndUserId_UserIdx(
+                productId, user.getUser().getUserIdx()).orElseGet(() ->
+                BidProxyEntity.builder().productId(product).userId(user.getUser()).build());
         if (proxy.getMaxPrice() != null && dto.getMaxAmount() < proxy.getMaxPrice()) {
-            return BidDTO.builder()
-                    .currentPrice(product.getCurrentPrice() != null ? product.getCurrentPrice() : product.getStartPrice())
-                    .leaderName(leader != null ? leader.getUserId().getName() : user.getUser().getName())
-                    .message("현재 설정된 최대가보다 낮게 설정할 수 없습니다.")
-                    .build();
-        }
-        proxy.setMaxPrice(dto.getMaxAmount());
-        BidProxyEntity saved = bidProxyRepository.save(proxy);
-
-        // 첫 입찰
-        if (leader == null) {
-            product.setCurrentPrice(product.getStartPrice());
-            product.setLeaderIdx(saved.getUserId());
-            productsRepository.save(product);
-            return BidDTO.builder()
-                    .leaderName(saved.getUserId().getName())
-                    .currentPrice(product.getStartPrice())
-                    .message("첫 입찰입니다.")
-                    .build();
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "등록된 최대 입찰가보다 낮출 수 없습니다.");
         }
 
-        int leaderPrice = leader.getMaxPrice();
-        int challengerPrice = saved.getMaxPrice();
-
-        // 동일한 입찰자, 입찰금 수정
-        if (leader.getUserId().getUserIdx().equals(user.getUser().getUserIdx())) {
-            return BidDTO.builder()
-                    .currentPrice(product.getCurrentPrice())
-                    .leaderName(leader.getUserId().getName())
-                    .message("최대 입찰가가 갱신되었습니다.")
-                    .build();
+        if (proxy.getMaxPrice() == null || dto.getMaxAmount() > proxy.getMaxPrice()) {
+            proxy.setRankOrder(Math.addExact(bidProxyRepository.lastRankOrder(productId), 1));
+            proxy.setMaxPrice(dto.getMaxAmount());
+            bidProxyRepository.saveAndFlush(proxy);
         }
-
-        // 도전자 금액이 최고 입찰자보다 큰 경우
-        if (challengerPrice > leaderPrice) {
-            product.setCurrentPrice(leaderPrice + product.getMinIncrement());
-            product.setLeaderIdx(saved.getUserId());
-            productsRepository.save(product);
-            return BidDTO.builder()
-                    .currentPrice(leaderPrice + product.getMinIncrement())
-                    .leaderName(saved.getUserId().getName())
-                    .message("입찰 경쟁에 승리하셨습니다. 최고 입찰자가 변경됩니다.")
-                    .build();
-
-            // 도전자 금액이 최고 입찰자보다 작은 경우
-        } else if (challengerPrice < leaderPrice) {
-            return BidDTO.builder()
-                    .currentPrice(challengerPrice + product.getMinIncrement())
-                    .leaderName(leader.getUserId().getName())
-                    .message("입찰 경쟁에서 패배하셨습니다. 최고 입찰자가 유지됩니다.")
-                    .build();
-
-            // 도전자 금액과 최고 입찰자 금액이 같은 경우, 먼저 입찰한 사람이 승리
-        } else {
-            return BidDTO.builder()
-                    .currentPrice(product.getCurrentPrice())
-                    .leaderName(leader.getUserId().getName())
-                    .message("최고 입찰자와 금액이 동일하여 최고 입찰자가 유지됩니다.")
-                    .build();
+        List<BidProxyEntity> ranking =
+                bidProxyRepository.findTop2ByProductId_ProductIdOrderByMaxPriceDescRankOrderAsc(productId);
+        BidProxyEntity leader = ranking.getFirst();
+        int price = product.getStartPrice();
+        if (ranking.size() == 2) {
+            long nextPrice = (long) ranking.get(1).getMaxPrice() + product.getMinIncrement();
+            price = (int) Math.max(price, Math.min(leader.getMaxPrice(), nextPrice));
         }
+        product.setCurrentPrice(price);
+        product.setLeaderIdx(leader.getUserId());
+
+        boolean leads = leader.getUserId().getUserIdx().equals(user.getUser().getUserIdx());
+        return BidDTO.builder().leaderName(leader.getUserId().getName()).currentPrice(price)
+                .message(leads ? "입찰을 등록했습니다. 현재 최고 입찰자입니다." : "입찰을 등록했습니다. 기존 최고 입찰자가 유지됩니다.")
+                .build();
     }
 
-    // 즉시 구매
+    @Transactional
     public BuyNowDTO buynow(Long productId, CustomUserDetail user) {
-        ProductsEntity product = productsRepository.findById(productId).orElseThrow();
-        if(product.getSellerIdx().equals(user.getUser())) {
-            return BuyNowDTO.builder()
-                    .message("본인이 올린 상품은 구매할 수 없습니다.")
-                    .build();
+        ProductsEntity product = lockOpenAuction(productId, user);
+        if (product.getBuyNow() == null || product.getBuyNow() <= 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "즉시 구매가 설정되지 않았습니다.");
         }
-        product.setStatus(StatusEnum.ENDED);
         product.setLeaderIdx(user.getUser());
         product.setCurrentPrice(product.getBuyNow());
-        product.setWinnerIdx(user.getUser());
-        productsRepository.save(product);
-
-        ChatRoomEntity room = ChatRoomEntity.builder()
-                .buyerId(user.getUser())
-                .sellarId(product.getSellerIdx())
-                .productId(product)
-                .build();
-        ChatRoomEntity saved = chatRoomRepository.save(room);
+        ChatRoomEntity room = finishAuction(product);
 
         return BuyNowDTO.builder()
-                .roomId(saved.getChatRoomId())
-                .message("구매 성공하셨습니다.")
+                .roomId(room.getChatRoomId())
+                .message("즉시 구매가 확정되었습니다.")
                 .build();
     }
 
-    // 상품 상태 관리 로직
-    @Transactional
-    @Scheduled(fixedRate = 60000)
-    public void productScheduler() {
-        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Seoul"));
-
-        List<ProductsEntity> toStart = productsRepository.findByStatusAndStartAtBefore(StatusEnum.SCHEDULED, now);
-        for (ProductsEntity product : toStart) {
-            product.setStatus(StatusEnum.RUNNING);
+    private ProductsEntity lockOpenAuction(Long productId, CustomUserDetail user) {
+        ProductsEntity product = productsRepository.findForUpdate(productId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "상품을 찾을 수 없습니다."));
+        if (product.getSellerIdx().getUserIdx().equals(user.getUser().getUserIdx())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "내 상품에 입찰하거나 구매할 수 없습니다.");
         }
+        LocalDateTime now = auctionNow();
+        if (product.getStatus() != StatusEnum.RUNNING || now.isBefore(product.getStartAt())
+                || !now.isBefore(product.getEndAt())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "진행 중인 경매만 이용할 수 있습니다.");
+        }
+        return product;
+    }
 
-        List<ProductsEntity> toEnd = productsRepository.findByStatusAndEndAtBefore(StatusEnum.RUNNING, now);
-        for (ProductsEntity product : toEnd) {
-            product.setStatus(StatusEnum.ENDED);
-            if (product.getLeaderIdx() != null) {
-                product.setWinnerIdx(product.getLeaderIdx());
-                UsersEntity buyer  = product.getLeaderIdx();
-                UsersEntity seller = product.getSellerIdx();
-                if (buyer == null || seller == null) return;
-
-                // 이미 존재하면 생략
-                if (chatRoomRepository.existsByBuyerIdAndSellarIdAndProductId(buyer, seller, product)) return;
-
+    @Scheduled(fixedDelayString = "${app.scheduling.delay-ms:60000}")
+    public void productScheduler() {
+        LocalDateTime now = auctionNow();
+        for (StatusEnum status : List.of(StatusEnum.RUNNING, StatusEnum.SCHEDULED)) {
+            List<Long> ids = productsRepository.findDueIds(status, now, PageRequest.of(0, 100));
+            for (Long id : ids) {
                 try {
-                    chatRoomRepository.save(
-                            ChatRoomEntity.builder()
-                                    .buyerId(buyer)
-                                    .sellarId(seller)
-                                    .productId(product)
-                                    .build()
-                    );
-                } catch (DataIntegrityViolationException e) {
-                    // 유니크 제약 덕분에 경합 시 한 쪽만 성공 → 나머지는 여기로 들어오므로 무시
-                    log.debug("Chat room already created concurrently. productId={}", product.getProductId());
+                    auctionTransaction.executeWithoutResult(transaction -> updateAuctionStatus(id));
+                } catch (RuntimeException exception) {
+                    log.error("경매 상태 갱신 실패. productId={}", id, exception);
                 }
             }
         }
+    }
+
+    private void updateAuctionStatus(Long productId) {
+        ProductsEntity product = productsRepository.findForUpdate(productId).orElse(null);
+        if (product == null || (product.getStatus() != StatusEnum.SCHEDULED
+                && product.getStatus() != StatusEnum.RUNNING)) {
+            return;
+        }
+        LocalDateTime now = auctionNow();
+        if (!now.isBefore(product.getEndAt())) {
+            finishAuction(product);
+        } else if (product.getStatus() == StatusEnum.SCHEDULED && !now.isBefore(product.getStartAt())) {
+            product.setStatus(StatusEnum.RUNNING);
+        }
+    }
+
+    private ChatRoomEntity finishAuction(ProductsEntity product) {
+        product.setStatus(StatusEnum.ENDED);
+        product.setWinnerIdx(product.getLeaderIdx());
+        return product.getWinnerIdx() == null ? null : tradeRoom(product);
+    }
+
+    private ChatRoomEntity tradeRoom(ProductsEntity product) {
+        UsersEntity buyer = product.getWinnerIdx();
+        return chatRoomRepository.findByProductId_ProductId(product.getProductId()).map(room -> {
+            if (!room.getBuyerId().getUserIdx().equals(buyer.getUserIdx())
+                    || !room.getSellarId().getUserIdx().equals(product.getSellerIdx().getUserIdx())) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "거래 채팅방의 참여자가 일치하지 않습니다.");
+            }
+            return room;
+        }).orElseGet(() -> chatRoomRepository.save(ChatRoomEntity.builder()
+                .buyerId(buyer).sellarId(product.getSellerIdx()).productId(product).build()));
+    }
+
+    private LocalDateTime auctionNow() {
+        return LocalDateTime.now(ZoneId.of("Asia/Seoul"));
     }
 
     public String changeDay(LocalDateTime endAt, LocalDateTime now) {

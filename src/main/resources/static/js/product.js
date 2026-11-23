@@ -1,6 +1,5 @@
 // ===== 기본 참조 =====
 const grid   = document.getElementById('productGrid');
-let   cards  = [];
 const sortSel = document.getElementById('sortSelect');
 const catSel  = document.getElementById('categorySelect');
 const gridBtn = document.getElementById('gridBtn');
@@ -30,17 +29,12 @@ function createRunningCard(p) {
   const wrap = document.createElement('div');
   wrap.className = 'col-6 col-md-4 col-lg-3 col-card';
   wrap.dataset.id       = p.id;
-  wrap.dataset.category = p.category || '';
-  wrap.dataset.price    = p.price ?? p.startPrice ?? 0;
-  wrap.dataset.endat    = p.endAt || '';
-  wrap.dataset.pop      = p.popularity ?? p.pop ?? 0;
-  wrap.dataset.recent   = p.recent ?? p.updatedAt ?? p.createdAt ?? p.endAt ?? '';
 
   wrap.innerHTML = `
     <div class="card product-card h-100">
-      <img src="${p.imageUrl || 'https://via.placeholder.com/400'}" class="card-img-top" alt="상품" />
+      <img class="card-img-top" alt="상품" />
       <div class="card-body p-2">
-        <p class="mb-1 text-truncate">${p.title ?? ''}</p>
+        <p class="mb-1 text-truncate"></p>
         <div class="d-flex justify-content-between">
           <span class="price">₩${KR.format(p.price ?? p.startPrice ?? 0)}</span>
           <span class="muted">${p.ddayText ?? `D-${daysUntil(p.endAt)}`}</span>
@@ -48,6 +42,10 @@ function createRunningCard(p) {
       </div>
     </div>
   `;
+  const image = wrap.querySelector("img");
+  image.src = /^\/files\/products\/[0-9]+_400\/[0-9]+\.jpg$/.test(p.imageUrl ?? "")
+    ? p.imageUrl : "/image/default_product.png";
+  wrap.querySelector("p").textContent = p.title ?? "";
   return wrap;
 }
 
@@ -92,53 +90,41 @@ function createProductCard(p) {
   return el;
 }
 
-// ===== 3) 데이터 로드 & 렌더 =====
-async function loadProduct() {
-  const res = await fetch('/api/products', { credentials: 'include' });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const data = await res.json();
+const previous = document.getElementById("previousProducts");
+const next = document.getElementById("nextProducts");
+const summary = document.getElementById("productPageSummary");
+const message = document.getElementById("productListMessage");
+let page = 0;
+let request;
 
-  const items = Array.isArray(data) ? data : (data?.content ?? []);
-  grid.innerHTML = '';
-
-  const frag = document.createDocumentFragment();
-  items.forEach(p => frag.appendChild(createProductCard(p)));
-  grid.appendChild(frag);
-  cards = Array.from(grid.children);
-
-  applyFilterSort();
+async function loadProduct(target = 0) {
+  request?.abort();
+  const controller = new AbortController();
+  request = controller;
+  previous.disabled = true;
+  next.disabled = true;
+  message.textContent = "";
+  const params = new URLSearchParams({ page: target, sort: sortSel.value, category: catSel.value });
+  try {
+    const response = await fetch(`/api/products?${params}`, { signal: controller.signal });
+    if (!response.ok) throw new Error("Unable to load products");
+    const result = await response.json();
+    if (controller.signal.aborted) return;
+    page = result.page;
+    grid.replaceChildren(...result.content.map(createProductCard));
+    message.textContent = result.content.length ? "" : "등록된 상품이 없습니다.";
+    summary.textContent = result.totalPages ? `${page + 1} / ${result.totalPages}` : "";
+    previous.disabled = page === 0;
+    next.disabled = page + 1 >= result.totalPages;
+  } catch (error) {
+    if (error.name !== "AbortError") message.textContent = "상품을 불러오지 못했습니다.";
+  }
 }
 
-// ===== 4) 정렬/필터 =====
-function applyFilterSort(){
-  const cat = catSel?.value || '';
-
-  cards.forEach(c => {
-    const ok = !cat || c.dataset.category === cat;
-    c.style.display = ok ? '' : 'none';
-  });
-
-  const visible = cards.filter(c => c.style.display !== 'none');
-
-  const by = sortSel?.value || 'recent';
-  visible.sort((a,b)=>{
-    const num = v => Number(v||0);
-    const date = v => new Date(v||0).getTime();
-    switch(by){
-      case 'priceAsc':  return num(a.dataset.price) - num(b.dataset.price);
-      case 'priceDesc': return num(b.dataset.price) - num(a.dataset.price);
-      case 'endSoon':   return date(a.dataset.endat) - date(b.dataset.endat);
-      case 'popular':   return num(b.dataset.pop) - num(a.dataset.pop);
-      default:          return date(b.dataset.recent) - date(a.dataset.recent);
-    }
-  });
-
-  visible.forEach(el => grid.appendChild(el));
-}
-
-// ===== 5) 이벤트 바인딩 =====
-sortSel?.addEventListener('change', applyFilterSort);
-catSel?.addEventListener('change', applyFilterSort);
+sortSel.addEventListener("change", () => loadProduct(0));
+catSel.addEventListener("change", () => loadProduct(0));
+previous.addEventListener("click", () => loadProduct(page - 1));
+next.addEventListener("click", () => loadProduct(page + 1));
 
 // 보기 전환
 gridBtn?.addEventListener('click', (e)=>{
@@ -168,7 +154,7 @@ grid.addEventListener('click', (e)=>{
 
 // ===== 6) 페이지 로드 시 실행 =====
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', loadProduct);
+  document.addEventListener('DOMContentLoaded', () => loadProduct());
 } else {
   loadProduct();
 }

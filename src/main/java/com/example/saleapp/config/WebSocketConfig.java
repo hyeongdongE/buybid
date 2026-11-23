@@ -8,23 +8,24 @@ import org.springframework.messaging.simp.config.MessageBrokerRegistry;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
+import org.springframework.web.socket.config.annotation.WebSocketTransportRegistration;
 
 @Configuration
 @EnableWebSocketMessageBroker
 @RequiredArgsConstructor
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     private final SimpleUserChannelInterceptor simpleUserChannelInterceptor;
+    private final ChatSocketSessions sessions;
+
+    @Override
+    public void configureWebSocketTransport(WebSocketTransportRegistration registry) {
+        registry.addDecoratorFactory(sessions::decorate);
+    }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns(
-                        "https://www.unigo.io.kr",
-                        "https://unigo.io.kr",
-                        "http://localhost:*",
-                        "capacitor://localhost"
-                )
-                .withSockJS();
+        registry.setPreserveReceiveOrder(true);
+        registry.addEndpoint("/ws").withSockJS();
     }
 
     @Override

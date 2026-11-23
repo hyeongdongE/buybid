@@ -1,28 +1,11 @@
 spring:
   datasource:
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: "jdbc:mysql://${DB_HOST}:${DB_PORT:3306}/${DB_NAME}?serverTimezone=Asia/Seoul&characterEncoding=UTF-8&useSSL=false"
-    username: ${DB_USER}
-    password: ${DB_PASS}
-    hikari:
-      maximum-pool-size: 15
-      minimum-idle: 5
-      connection-timeout: 30000
-      validation-timeout: 5000
-
+    url: ${BUYBID_DB_URL}
+    username: ${BUYBID_DB_USER}
+    password: ${BUYBID_DB_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: none
-    show-sql: false
-    properties:
-      hibernate:
-        format_sql: true
-        jdbc.time_zone: Asia/Seoul
-        dialect: org.hibernate.dialect.MySQL8Dialect   # 최신 MySQL이면 8Dialect로
-
-logging:
-  level:
-    org.hibernate.SQL: warn
+      ddl-auto: validate
 
 app:
-  upload-dir: /var/www/saleapp/uploads/image
+  upload-dir: ${BUYBID_UPLOAD_DIR}

@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: ${BUYBID_TEST_DB_URL:jdbc:h2:mem:buybid;MODE=MySQL;DB_CLOSE_DELAY=-1}
+    username: ${BUYBID_TEST_DB_USER:sa}
+    password: ${BUYBID_TEST_DB_PASSWORD:}
+  jpa:
+    hibernate:
+      ddl-auto: ${BUYBID_TEST_DDL_AUTO:create-drop}
+  flyway:
+    enabled: ${BUYBID_TEST_FLYWAY:false}
+
+jwt:
+  secret: ${BUYBID_TEST_JWT_SECRET:cHVyZWx5LWxvY2FsLXRlc3QtZml4dHVyZS1rZXktZm9yLWJ1eWJpZC1vbmx5}
+
+app:
+  cookie-secure: false
+  scheduling:
+    enabled: false

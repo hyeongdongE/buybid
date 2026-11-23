@@ -1,81 +1,27 @@
-import { setAccessToken, getAccessToken } from "./auth.js";
+import { csrfFetch, refreshSession } from "./auth.js";
 
-document.getElementById("loginForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
+const requestedPage = new URLSearchParams(location.search).get("next") ?? "";
+const validNext = requestedPage === "/chatlist" || requestedPage === "/productupload"
+    || /^\/chat\/\d+$/.test(requestedPage);
+const next = validNext ? requestedPage : "/main";
+
+if (validNext) {
+    refreshSession().then(ok => { if (ok) location.replace(next); }).catch(() => {});
+}
+
+document.getElementById("loginForm").addEventListener("submit", async event => {
+    event.preventDefault();
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
-
-    const res = await fetch("/api/signin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password })
-    });
-
-    if (!res.ok) {
-        alert("로그인 실패");
-        return;
+    try {
+        const response = await csrfFetch("/api/signin", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email, password })
+        });
+        if (response.ok) location.replace(next);
+        else alert("이메일 또는 비밀번호를 확인하세요.");
+    } catch {
+        alert("로그인 요청에 실패했습니다. 잠시 후 다시 시도하세요.");
     }
-
-    const data = await res.json();
-    setAccessToken(data.accessToken);
-    window.location.href = "/main";
-
-    alert("로그인 성공")
 });
-//
-//async function fetchWithAuth(url, options = {}) {
-//    let token = getAccessToken();
-//
-//    let res = await fetch(url, {
-//        ...options,
-//        headers: {
-//            ...(options.headers || {}),
-//            Authorization: `Bearer ${token}`
-//        },
-//        credentials: "include"
-//    });
-//
-//    // Access Token 만료 → Refresh 시도
-//    if (res.status === 401) {
-//        console.log("Access Token 만료 → Refresh 시도");
-//        const success = await refreshToken();
-//
-//        if (success) {
-//            token = getAccessToken();
-//            res = await fetch(url, {
-//                ...options,
-//                headers: {
-//                    ...(options.headers || {}),
-//                    Authorization: `Bearer ${token}`
-//                },
-//                credentials: "include"
-//            });
-//        } else {
-//            alert("세션이 만료되었습니다. 다시 로그인해주세요.");
-//            return null;
-//        }
-//    }
-//
-//    return res;
-//}
-//
-//async function refreshToken() {
-//    const res = await fetch("/api/refresh", {
-//        method: "POST",
-//        credentials: "include"
-//    });
-//
-//    if (!res.ok) {
-//        return false;
-//    }
-//
-//    const data = await res.json();
-//    setAccessToken(data.accessToken); // 새 Access Token 갱신
-//    console.log("토큰 갱신 완료:", data.accessToken);
-//    return true;
-//}
-//
-//document.addEventListener("DOMContentLoaded", async () => {
-//    await refreshToken();
-//});

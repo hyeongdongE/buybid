@@ -20,6 +20,7 @@ public class ChatMessageEntity {
     @Column(name = "chatId")
     private Long chatId;
 
+    @Column(length = 1000)
     private String content;
     private LocalDateTime createdAt;
 

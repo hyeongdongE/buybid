@@ -7,7 +7,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "bid_proxy")
+@Table(name = "bid_proxy", uniqueConstraints = @UniqueConstraint(name = "uk_bid_proxy_product_user", columnNames = {"product_id", "user_id"}))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -18,12 +18,15 @@ public class BidProxyEntity {
     private Long proxyId;
 
     @ManyToOne
-    @JoinColumn(name = "productId")
+    @JoinColumn(name = "product_id")
     private ProductsEntity productId;
 
     @ManyToOne
-    @JoinColumn(name = "userId")
+    @JoinColumn(name = "user_id")
     private UsersEntity userId;
 
     private Integer maxPrice;
+
+    @Column(name = "rank_order", nullable = false)
+    private Long rankOrder;
 }
