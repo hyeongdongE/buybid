@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#fafbf9">
   <title>BuyBid · 중고 경매 백엔드 프로젝트</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./site.css?v=reading-layout">
+  <link rel="stylesheet" href="./site.css?v=result-screens">
   <script src="./site.js" defer></script>
 </head>
 <body id="top">
@@ -37,6 +37,20 @@
           <div><dt>실제 브라우저</dt><dd><strong>메시지 2건</strong><p class="metric-context">Chrome · 구매자와 판매자</p><p class="metric-evidence">각 계정이 한 건씩 전송했습니다. 상대 화면과 저장 이력에서 모두 확인했습니다.</p></dd></div>
           <div><dt>목록 조회</dt><dd><strong>기본 24개</strong><p class="metric-context">상품 52개 · 최대 페이지 크기 50개</p><p class="metric-evidence">같은 카테고리의 상품으로 필터, 가격순 정렬, 페이지 경계를 확인했습니다.</p></dd></div>
         </dl>
+        <div class="summary-screens" role="group" aria-label="BuyBid 실제 실행 화면">
+          <figure>
+            <a href="./assets/products.webp"><img src="./assets/products.webp" width="1120" height="850" alt="BuyBid 상품 목록에서 등록한 헤드폰의 썸네일과 현재가가 보이는 화면" loading="lazy"></a>
+            <figcaption>상품 목록</figcaption>
+          </figure>
+          <figure>
+            <a href="./assets/auction.webp"><img src="./assets/auction.webp" width="1120" height="850" alt="경쟁 입찰 후 현재가가 20,000원으로 표시된 상품 상세 화면" loading="lazy"></a>
+            <figcaption>자동입찰</figcaption>
+          </figure>
+          <figure>
+            <a href="./assets/chat.webp"><img src="./assets/chat.webp" width="1120" height="850" alt="즉시 구매가 확정된 상품에서 거래 당사자가 메시지를 주고받은 채팅 화면" loading="lazy"></a>
+            <figcaption>거래 채팅</figcaption>
+          </figure>
+        </div>
         <p class="note">동시 구매 수치는 MySQL 8.0.46에서 실행한 회귀 테스트 기준입니다.</p>
       </section>
 

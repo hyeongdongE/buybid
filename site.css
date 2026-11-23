@@ -73,10 +73,10 @@ h1 { font-size: 1.625rem; line-height: 1.25; }
 .results > div {
   display: flex;
   flex-direction: column;
-  min-height: 16.25rem;
+  min-height: 16.875rem;
   padding: 1.125rem 1.25rem 1rem;
   border: 1px solid var(--line);
-  border-radius: .875rem;
+  border-radius: 1rem;
   background: var(--card);
 }
 .results dt { color: var(--accent); font-size: .88rem; font-weight: 770; }
@@ -85,6 +85,18 @@ h1 { font-size: 1.625rem; line-height: 1.25; }
 .results p { color: var(--muted); font-size: .91rem; line-height: 1.6; }
 .results .metric-context { margin-bottom: 1.15rem; color: var(--accent); font-size: .86rem; }
 .metric-evidence { margin-top: auto; padding-top: .72rem; border-top: 1px solid var(--line); }
+.summary-screens {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(10rem, 1fr));
+  gap: .5rem;
+  margin-top: .75rem;
+  overflow-x: auto;
+}
+.summary-screens figure { min-width: 0; }
+.summary-screens a { display: block; border-radius: .6rem; }
+.summary-screens a:focus-visible { outline-offset: -3px; }
+.summary-screens img { width: 100%; border: 1px solid var(--line); border-radius: inherit; background: var(--card); }
+.summary-screens figcaption { margin: .32rem 0 .35rem; color: var(--muted); font-size: .84rem; }
 .note { margin-top: .7rem; font-size: .84rem; }
 
 .steps { display: flex; flex-wrap: wrap; column-gap: 1.7rem; row-gap: .38rem; margin: .92rem 0 0; padding: .7rem .9rem .7rem 2.15rem; list-style: decimal; background: var(--tint); color: var(--accent); border-radius: .35rem; font-size: .91rem; font-weight: 700; }
@@ -134,7 +146,6 @@ h1 { font-size: 1.625rem; line-height: 1.25; }
   .section > h2 { gap: .45rem; }
   .summary > h2 { font-size: 1.25rem; }
   .results { grid-template-columns: 1fr; }
-  .results > div { min-height: 14rem; }
   .screen-tabs { margin-inline: -.1rem; }
   .screen-tabs button { padding-inline: .42rem; }
   .gallery-caption { align-items: flex-start; }
