@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#fafbf9">
   <title>BuyBid · 중고 경매 백엔드 프로젝트</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="./site.css?v=editorial">
+  <link rel="stylesheet" href="./site.css?v=reading-layout">
   <script src="./site.js" defer></script>
 </head>
 <body id="top">
@@ -26,16 +26,16 @@
       <header class="article-header">
         <p class="byline">이형동 · 백엔드 프로젝트</p>
         <h1>BuyBid · 동시 구매에도 낙찰은 한 건</h1>
-        <p class="lead">구매자가 정한 한도 안에서 현재가를 계산하는 중고 경매 서비스입니다. 입찰·즉시 구매가 겹칠 때 낙찰 정보가 어긋나는 문제를 상품 행 잠금과 트랜잭션으로 해결했습니다. 거래가 확정되면 구매자와 판매자가 채팅으로 일정을 조율합니다.</p>
+        <p class="lead">최대 입찰가를 기준으로 현재가를 정하는 중고 경매 서비스입니다. 동시 구매를 제어하고, 거래가 확정되면 구매자와 판매자를 채팅으로 연결합니다.</p>
       </header>
 
       <section class="section summary" id="results" aria-labelledby="results-title">
         <h2 id="results-title">한눈에 보는 성과</h2>
         <dl class="results">
-          <div><dt>동시 구매</dt><dd><strong>10회 중 10회</strong><p>같은 상품에 두 요청을 동시에 보내 매번 구매 성공 1건, 상태 충돌 1건, 거래 채팅방 1개를 확인했습니다.</p></dd></div>
-          <div><dt>회귀 검증</dt><dd><strong>34건 통과</strong><p>H2와 격리 MySQL에서 각각 실행했습니다. 경매 가격과 인증·채팅, 업로드 롤백을 포함합니다.</p></dd></div>
-          <div><dt>실제 브라우저</dt><dd><strong>메시지 2건</strong><p>구매자와 판매자가 Chrome에서 한 건씩 전송했습니다. 상대 화면과 저장 이력에서 모두 확인했습니다.</p></dd></div>
-          <div><dt>목록 조회</dt><dd><strong>기본 24개</strong><p>상품 52개로 필터와 가격순 정렬을 검증했습니다. 요청한 페이지 크기는 최대 50개로 제한합니다.</p></dd></div>
+          <div><dt>동시 구매</dt><dd><strong>10회 중 10회</strong><p class="metric-context">동일 상품에 동시 요청 2건</p><p class="metric-evidence">매회 구매 성공 1건, 상태 충돌 1건, 거래 채팅방 1개를 확인했습니다.</p></dd></div>
+          <div><dt>회귀 검증</dt><dd><strong>34건 통과</strong><p class="metric-context">H2 · 격리 MySQL</p><p class="metric-evidence">두 환경에서 각각 실행했습니다. 경매 가격과 인증·채팅, 업로드 롤백을 포함합니다.</p></dd></div>
+          <div><dt>실제 브라우저</dt><dd><strong>메시지 2건</strong><p class="metric-context">Chrome · 구매자와 판매자</p><p class="metric-evidence">각 계정이 한 건씩 전송했습니다. 상대 화면과 저장 이력에서 모두 확인했습니다.</p></dd></div>
+          <div><dt>목록 조회</dt><dd><strong>기본 24개</strong><p class="metric-context">상품 52개 · 최대 페이지 크기 50개</p><p class="metric-evidence">같은 카테고리의 상품으로 필터, 가격순 정렬, 페이지 경계를 확인했습니다.</p></dd></div>
         </dl>
         <p class="note">동시 구매 수치는 MySQL 8.0.46에서 실행한 회귀 테스트 기준입니다.</p>
       </section>
